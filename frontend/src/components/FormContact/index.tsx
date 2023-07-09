@@ -29,18 +29,14 @@ function FormContact() {
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
     const [phones, setPhones] = useState<IPhone[]>([]);
-    const [lastPhoneID, setLastPhoneID] = useState(-1);
     const [emails, setEmails] = useState<IEmail[]>([]);
-    const [lastEmailID, setLastEmailID] = useState(-1);
     const [submitDisabled, setSubmitDisabled] = useState(false);
     const [message, setMessage] = useState<ReactElement | null>(null);
 
     useEffect(() => {
         setMessage(null);
         setPhone('');
-        setLastPhoneID(-1);
         setEmail('');
-        setLastEmailID(-1);
         if (contact === null) {
             setName('');
             setAlias('');
@@ -58,21 +54,19 @@ function FormContact() {
         e.preventDefault();
         if (phone.length > 0) {
             setPhones([...phones, {
-                'id': lastPhoneID,
                 'phone': phone
             }]);
             setPhone('');
-            setLastPhoneID(lastPhoneID - 1);
         }
     }
 
     function deletePhone(e: MouseEvent<HTMLButtonElement>) {
         e.preventDefault();
-        const phone = JSON.parse(e.currentTarget.value);
-        if (phone.id < 0) {
-            setPhones(phones.filter(p => p.id !== phone.id));
+        const idx = Number(e.currentTarget.value);
+        if (phones[idx].id === undefined) {
+            setPhones(phones.filter((_, i) => i !== idx));
         } else {
-            setPhones([...phones.filter(p => p.id !== phone.id), { ...phone, deleted: true }]);
+            setPhones([...phones.filter((_, i) => i !== idx), { ...phones[idx], deleted: true }]);
         }
     }
 
@@ -82,10 +76,10 @@ function FormContact() {
                 <>
                     <h6 className="card-subtitle mb-1 text-muted">Telefone(s)</h6>
                     <ul className="list-group text-center mb-2">
-                        {phones.map(p => p.deleted === undefined || p.deleted === false ? (
-                            <li className="list-group-item d-flex justify-content-between align-items-center" key={p.id}>
+                        {phones.map((p, i) => p.deleted === undefined || p.deleted === false ? (
+                            <li className="list-group-item d-flex justify-content-between align-items-center" key={i}>
                                 {p.phone}
-                                <button className="btn btn-outline-danger btn-sm" value={JSON.stringify(p)} onClick={deletePhone}>
+                                <button className="btn btn-outline-danger btn-sm" value={i} onClick={deletePhone}>
                                     <span className="fa fa-trash" />
                                 </button>
                             </li>
@@ -100,21 +94,19 @@ function FormContact() {
         e.preventDefault();
         if (email.length > 0) {
             setEmails([...emails, {
-                'id': lastEmailID,
                 'email': email
             }]);
             setEmail('');
-            setLastEmailID(lastEmailID - 1);
         }
     }
 
     function deleteEmail(e: MouseEvent<HTMLButtonElement>) {
         e.preventDefault();
-        const email = JSON.parse(e.currentTarget.value);
-        if (email.id < 0) {
-            setEmails(emails.filter(e => e.id !== email.id));
+        const idx = Number(e.currentTarget.value);
+        if (emails[idx].id === undefined) {
+            setEmails(emails.filter((_, i) => i !== idx));
         } else {
-            setEmails([...emails.filter(e => e.id !== email.id), { ...email, deleted: true }]);
+            setEmails([...emails.filter((_, i) => i !== idx), { ...emails[idx], deleted: true }]);
         }
     }
 
@@ -124,10 +116,10 @@ function FormContact() {
                 <>
                     <h6 className="card-subtitle mb-1 text-muted">E-mail(s)</h6>
                     <ul className="list-group text-center mb-2">
-                        {emails.map(e => e.deleted === undefined || e.deleted === false ? (
-                            <li className="list-group-item d-flex justify-content-between align-items-center" key={e.id}>
+                        {emails.map((e, i) => e.deleted === undefined || e.deleted === false ? (
+                            <li className="list-group-item d-flex justify-content-between align-items-center" key={i}>
                                 {e.email}
-                                <button className="btn btn-outline-danger btn-sm" value={JSON.stringify(e)} onClick={deleteEmail}>
+                                <button className="btn btn-outline-danger btn-sm" value={i} onClick={deleteEmail}>
                                     <span className="fa fa-trash" />
                                 </button>
                             </li>
@@ -149,10 +141,8 @@ function FormContact() {
             setName('');
             setAlias('');
             setPhones([]);
-            setLastPhoneID(-1);
             setPhone('');
             setEmails([]);
-            setLastEmailID(-1);
             setEmail('');
         } else {
             dispatch(actions.contactActions.setContact(null));
@@ -172,18 +162,14 @@ function FormContact() {
         } else if (contact === null) {
             setSubmitDisabled(true);
             try {
-                const _phones = phones.map(({ id, ...p }) => p);
-                const _emails = emails.map(({ id, ...e }) => e);
-                const response = await contactService.create(authorization!, { name, alias, phone: _phones, email: _emails });
+                const response = await contactService.create(authorization!, { name, alias, phone: phones, email: emails });
                 dispatch(actions.contactsActions.addContact(response.data));
                 setMessage(<DivAlert message={`Contato ${name} salvo.`} alert={'alert-success'} />);
                 setName('');
                 setAlias('');
                 setPhones([]);
-                setLastPhoneID(-1);
                 setPhone('');
                 setEmails([]);
-                setLastEmailID(-1);
                 setEmail('');
             } catch (error: any) {
                 if (error.response.data.status === 401) {
@@ -199,19 +185,7 @@ function FormContact() {
         } else {
             setSubmitDisabled(true);
             try {
-                const _phones = [...phones];
-                _phones.forEach(p => {
-                    if (p.id === undefined || p.id < 0) {
-                        delete p['id'];
-                    }
-                });
-                const _emails = [...emails];
-                _emails.forEach(e => {
-                    if (e.id === undefined || e.id < 0) {
-                        delete e['id'];
-                    }
-                });
-                await contactService.update(authorization!, { id: contact.id, name, alias, phone: _phones, email: _emails });
+                await contactService.update(authorization!, { id: contact.id, name, alias, phone: phones, email: emails });
                 dispatch(actions.contactActions.setContact(null));
                 try {
                     const response = await contactService.read(authorization!);

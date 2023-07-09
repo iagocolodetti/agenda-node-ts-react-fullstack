@@ -19,8 +19,6 @@ export default {
             try {
                 transaction = await database.getTransaction();
                 const contact = request.body as IContact;
-                contact.phone = contact.phone.map(({ id, ...p }) => p);
-                contact.email = contact.email.map(({ id, ...e }) => e);
                 contact.user_id = user_id;
                 const contact_result = await Contact.create(contact as any, {
                     include: [
@@ -144,16 +142,6 @@ export default {
             try {
                 transaction = await database.getTransaction();
                 const { name, alias, phone, email } = request.body;
-                phone.forEach((p: IPhone) => {
-                    if (p.id === undefined || p.id < 0) {
-                        delete p['id'];
-                    }
-                });
-                email.forEach((e: IEmail) => {
-                    if (e.id === undefined || e.id < 0) {
-                        delete e['id'];
-                    }
-                });
                 const contact_result = await Contact.findOne({
                     where: {
                         id: contact_id,
