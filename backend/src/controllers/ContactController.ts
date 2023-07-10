@@ -15,20 +15,16 @@ export default {
     async create(request: Request, response: Response) {
         try {
             const user_id = jwtUtil.getIdFromToken(request.headers['authorization']!);
-            let transaction: Transaction | undefined;
             try {
-                transaction = await database.getTransaction();
                 const contact = request.body as IContact;
                 contact.user_id = user_id;
                 const contact_result = await Contact.create(contact as any, {
                     include: [
                         Phone,
                         Email
-                    ],
-                    transaction
+                    ]
                 });
                 const { id: contact_id } = contact_result.get({ plain: true });
-                transaction.commit();
                 const result = await Contact.findOne({
                     where: {
                         id: contact_id
@@ -58,9 +54,6 @@ export default {
                 response.status(201);
                 response.json(result!.get({ plain: true }));
             } catch {
-                if (transaction) {
-                    await transaction.rollback();
-                }
                 response.status(500);
                 response.json(JsonError(request, response, 'Não foi possível cadastrar o contato'));
             }

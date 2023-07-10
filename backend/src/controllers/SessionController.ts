@@ -26,7 +26,7 @@ export default {
                 response.status(404);
                 response.json(JsonError(request, response, 'Usuário não encontrado ou senha incorreta'));
             }
-        } catch (error) {
+        } catch (error: any) {
             response.status(500);
             response.json(JsonError(request, response, 'Não foi possível efetuar o login'));
         }
