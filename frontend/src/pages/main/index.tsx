@@ -30,10 +30,11 @@ function Main() {
             if (authorization) {
                 try {
                     const response = await contactService.read(authorization);
-                    if (response.data.length > 0) {
+                    if (response.data) {
                         dispatch(actions.contactsActions.setContacts(response.data));
                     }
                 } catch (error: any) {
+                    dispatch(actions.contactsActions.setContacts([]));
                     if (error.response.data.status === 401) {
                         storageAuth.removeAuth();
                         storageAuth.setAuthError(error.response.data.message);

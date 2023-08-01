@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
+import { ValidationError } from 'sequelize';
 
 import User from '../models/User';
-
-import hashGenerator from '../utils/hashGenerator';
 
 import JsonError from '../errors/JsonError';
 
@@ -10,17 +9,18 @@ export default {
     async create(request: Request, response: Response) {
         try {
             const { username, password } = request.body;
-            if (!username || !password) {
-                response.status(400);
-                return response.send(JsonError(request, response, '\'username\' e \'password\' são obrigatórios no corpo da requisição'));
-            }
-            const hash = hashGenerator.generate(password)
-            await User.create({ username: username.toLowerCase(), password: hash });
+            await User.create({ username, password });
             response.sendStatus(201);
-        } catch (error: any) {
-            if (error.name === 'SequelizeUniqueConstraintError') {
-                response.status(409);
-                response.json(JsonError(request, response, 'Usuário já existe'));
+        } catch (error: ValidationError | any) {
+            if (error instanceof ValidationError) {
+                const err = error as ValidationError;
+                if (err.name === 'SequelizeUniqueConstraintError') {
+                    response.status(409);
+                    response.json(JsonError(request, response, 'Usuário já existe'));
+                } else {
+                    response.status(400);
+                    response.json(JsonError(request, response, err.message.replace('Validation error: ', '')));
+                }
             } else {
                 response.status(500);
                 response.json(JsonError(request, response, 'Não foi possível criar o usuário'));

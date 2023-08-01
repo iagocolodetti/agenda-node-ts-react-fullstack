@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Transaction } from 'sequelize';
+import { Transaction, ValidationError } from 'sequelize';
 
 import database from '../database';
 
@@ -15,47 +15,33 @@ export default {
     async create(request: Request, response: Response) {
         try {
             const user_id = jwtUtil.getIdFromToken(request.headers['authorization']!);
+            let transaction: Transaction | undefined;
             try {
+                transaction = await database.getTransaction();
                 const contact = request.body as IContact;
                 contact.user_id = user_id;
-                const contact_result = await Contact.create(contact as any, {
+                const result = await Contact.create(contact as any, {
                     include: [
                         Phone,
                         Email
-                    ]
-                });
-                const { id: contact_id } = contact_result.get({ plain: true });
-                const result = await Contact.findOne({
-                    where: {
-                        id: contact_id
-                    },
-                    attributes: [
-                        'id',
-                        'name',
-                        'alias'
                     ],
-                    include: [{
-                        model: Phone,
-                        as: Phone.tableName,
-                        attributes: [
-                            'id',
-                            'phone'
-                        ]
-                    }, {
-                        model: Email,
-                        as: Email.tableName,
-                        attributes: [
-                            'id',
-                            'email'
-                        ]
-                    }],
-                    raw: false
+                    transaction
                 });
+                await transaction.commit();
                 response.status(201);
-                response.json(result!.get({ plain: true }));
-            } catch {
-                response.status(500);
-                response.json(JsonError(request, response, 'Não foi possível cadastrar o contato'));
+                response.json(result.get({ plain: true }));
+            } catch (error: ValidationError | any) {
+                if (transaction) {
+                    await transaction.rollback();
+                }
+                if (error instanceof ValidationError) {
+                    const err = error as ValidationError;
+                    response.status(400);
+                    response.json(JsonError(request, response, err.message.replace('Validation error: ', '')));
+                } else {
+                    response.status(500);
+                    response.json(JsonError(request, response, 'Não foi possível cadastrar o contato'));
+                }
             }
         } catch (error: any) {
             response.status(error.status);
@@ -77,45 +63,15 @@ export default {
                 page = page * size;
             }
             try {
-                const result = await Contact.findAll({
+                const result = (await Contact.findAll({
                     where: {
                         user_id,
-                        deleted: 0
+                        deleted: false
                     },
-                    attributes: [
-                        'id',
-                        'name',
-                        'alias'
-                    ],
-                    include: [{
-                        model: Phone,
-                        as: Phone.tableName,
-                        where: {
-                            deleted: 0
-                        },
-                        attributes: [
-                            'id',
-                            'phone'
-                        ]
-                    }, {
-                        model: Email,
-                        as: Email.tableName,
-                        where: {
-                            deleted: 0
-                        },
-                        attributes: [
-                            'id',
-                            'email'
-                        ]
-                    }],
                     offset: page!,
                     limit: size!,
                     raw: false
-                });
-                let contacts: IContact[] = [];
-                result.map(contact => {
-                    contacts.push(contact.get({ plain: true }));
-                });
+                })).map(contact => contact.get({ plain: true }));
                 response.json(result);
             } catch {
                 response.status(500);
@@ -135,40 +91,14 @@ export default {
             try {
                 transaction = await database.getTransaction();
                 const { name, alias, phone, email } = request.body;
-                const contact_result = await Contact.findOne({
+                const result = await Contact.findOne({
                     where: {
                         id: contact_id,
                         user_id
                     },
-                    attributes: [
-                        'id',
-                        'name',
-                        'alias'
-                    ],
-                    include: [{
-                        model: Phone,
-                        as: Phone.tableName,
-                        where: {
-                            deleted: 0
-                        },
-                        attributes: [
-                            'id',
-                            'phone'
-                        ]
-                        }, {
-                        model: Email,
-                        as: Email.tableName,
-                        where: {
-                            deleted: 0
-                        },
-                        attributes: [
-                            'id',
-                            'email'
-                        ]
-                    }],
                     raw: false
                 });
-                if (contact_result) {
+                if (result) {
                     await Promise.all(phone.map(async (p: IPhone) => {
                         await Phone.upsert({
                             id: p.id,
@@ -185,19 +115,25 @@ export default {
                             deleted: e.deleted
                         }, { transaction });
                     }));
-                    await contact_result.update({ name, alias }, { transaction });
+                    await result.update({ name, alias }, { transaction });
                     await transaction.commit();
                     response.sendStatus(204);
                 } else {
                     response.status(404);
                     response.json(JsonError(request, response, 'Contato não encontrado'));
                 }
-            } catch {
+            } catch (error: ValidationError | any) {
                 if (transaction) {
                     await transaction.rollback();
                 }
-                response.status(500);
-                response.json(JsonError(request, response, 'Não foi possível atualizar o contato'));
+                if (error instanceof ValidationError) {
+                    const err = error as ValidationError;
+                    response.status(400);
+                    response.json(JsonError(request, response, err.message.replace('Validation error: ', '')));
+                } else {
+                    response.status(500);
+                    response.json(JsonError(request, response, 'Não foi possível atualizar o contato'));
+                }
             }
         } catch (error: any) {
             response.status(error.status);

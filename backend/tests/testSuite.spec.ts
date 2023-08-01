@@ -8,7 +8,7 @@ import Phone from '../src/models/Phone';
 import Email from '../src/models/Email';
 
 const MOCK_USER: IUser = {
-    username: 'user',
+    username: 'User',
     password: '12345'
 };
 
@@ -53,6 +53,25 @@ describe('controllers', () => {
             const response = await request(app).post('/users').send(MOCK_USER);
             expect(response.status).toBe(201);
         });
+
+        describe('should fail to create a new user', () => {
+            it('unique validation', async () => {
+                const response = await request(app).post('/users').send(MOCK_USER);
+                expect(response.status).toBe(409);
+            });
+
+            it('username validation', async () => {
+                const user: IUser = { username: 'Aa', password: '12345' };
+                const response = await request(app).post('/users').send(user);
+                expect(response.status).toBe(400);
+            });
+
+            it('password validation', async () => {
+                const user: IUser = { username: 'NewUser', password: '12' };
+                const response = await request(app).post('/users').send(user);
+                expect(response.status).toBe(400);
+            });
+        });
     });
 
     describe('SessionController', () => {
@@ -62,13 +81,69 @@ describe('controllers', () => {
             AUTHORIZATION = response.header.authorization;
             expect(AUTHORIZATION).not.toBe(null);
         });
+
+        describe('should fail to create a new session', () => {
+            it('user does not exist', async () => {
+                const user: IUser = { username: 'aaaaaa', password: 'aaaaaa' };
+                const response = await request(app).post('/login').send(user);
+                expect(response.status).toBe(404);
+            });
+
+            it('incorrect password', async () => {
+                const user = structuredClone(MOCK_USER);
+                user.password = '11111';
+                const response = await request(app).post('/login').send(user);
+                expect(response.status).toBe(404);
+            });
+        });
     });
 
     describe('ContactController', () => {
+        describe('should fail to create a new contact', () => {
+            it('name validation', async () => {
+                const contact = structuredClone(MOCK_CONTACT);
+                contact.name = 'aa';
+                const response = await request(app).post('/contacts').set('authorization', AUTHORIZATION).send(contact);
+                expect(response.status).toBe(400);
+            });
+
+            it('alias validation', async () => {
+                const contact = structuredClone(MOCK_CONTACT);
+                contact.alias = 'aa';
+                const response = await request(app).post('/contacts').set('authorization', AUTHORIZATION).send(contact);
+                expect(response.status).toBe(400);
+            });
+
+            it('phone validation', async () => {
+                const contact = structuredClone(MOCK_CONTACT);
+                contact.phone = [...contact.phone, { phone: '11' }];
+                const response = await request(app).post('/contacts').set('authorization', AUTHORIZATION).send(contact);
+                expect(response.status).toBe(400);
+            });
+
+            it('e-mail validation', async () => {
+                const contact = structuredClone(MOCK_CONTACT);
+                contact.email = [...contact.email, { email: 'aaa@aaa' }];
+                const response = await request(app).post('/contacts').set('authorization', AUTHORIZATION).send(contact);
+                expect(response.status).toBe(400);
+            });
+        });
+
         it('should create a new contact', async () => {
             const response = await request(app).post('/contacts').set('authorization', AUTHORIZATION).send(MOCK_CONTACT);
-            MOCK_CONTACT = response.body;
             expect(response.status).toBe(201);
+            const contact: IContact = response.body;
+            expect(contact.name).toEqual(MOCK_CONTACT.name);
+            expect(contact.alias).toEqual(MOCK_CONTACT.alias);
+            expect(contact.phone.length).toEqual(MOCK_CONTACT.phone.length);
+            MOCK_CONTACT.phone.map(p => {
+                expect(contact.phone.some(_p => _p.phone == p.phone)).toBeTruthy();
+            });
+            expect(contact.email.length).toEqual(MOCK_CONTACT.email.length);
+            MOCK_CONTACT.email.forEach(e => {
+                expect(contact.email.some(_e => _e.email == e.email)).toBeTruthy();
+            });
+            MOCK_CONTACT = structuredClone(contact);
         });
 
         it('should read contact list', async () => {
@@ -94,10 +169,21 @@ describe('controllers', () => {
         it('should update a contact', async () => {
             MOCK_CONTACT = { ...MOCK_CONTACT, alias: 'NewNickname' };
             MOCK_CONTACT.email[0] = { ...MOCK_CONTACT.email[0], deleted: true };
+            const deletedEmail = MOCK_CONTACT.email[0].email;
             MOCK_CONTACT.email[1] = { ...MOCK_CONTACT.email[1], email: 'email2@yahoo.com' };
             MOCK_CONTACT.email = [...MOCK_CONTACT.email, { email: 'email4@xyz.com' }];
             const response = await request(app).put(`/contacts/${MOCK_CONTACT.id}`).set('authorization', AUTHORIZATION).send(MOCK_CONTACT);
             expect(response.status).toBe(204);
+            const contacts: IContact[] = (await request(app).get('/contacts').set('authorization', AUTHORIZATION)).body;
+            const contact = contacts.find(c => c.id == MOCK_CONTACT.id);
+            expect(contact).not.toBe(undefined);
+            if (contact) {
+                expect(contact.alias).toEqual(MOCK_CONTACT.alias);
+                expect(contact.email.length).toBe(3);
+                expect(contact.email.some(e => e.email === deletedEmail)).toBeFalsy();
+                expect(contact.email.some(e => e.email === 'email2@yahoo.com')).toBeTruthy();
+                expect(contact.email.some(e => e.email === 'email4@xyz.com')).toBeTruthy();
+            }
         });
 
         it('should delete a contact', async () => {

@@ -1,9 +1,14 @@
 import { Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 
 import storageAuth from '../../utils/storageAuth';
+import actions from '../../actions';
 
 function Logout() {
+    const dispatch = useDispatch();
+    
     function logout() {
+        dispatch(actions.contactsActions.setContacts([]));
         storageAuth.clear();
     }
 
