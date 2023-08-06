@@ -4,6 +4,11 @@ import User from './User';
 import Phone from './Phone';
 import Email from './Email';
 
+const NAME_MIN_LENGTH = 3;
+const NAME_MAX_LENGTH = 45;
+const ALIAS_MIN_LENGTH = 3;
+const ALIAS_MAX_LENGTH = 20;
+
 @DefaultScope(() => ({
     include: [{
         model: Phone,
@@ -22,12 +27,12 @@ class Contact extends Model {
     id!: number;
 
     @AllowNull(false)
-    @Length({ msg: 'O campo destinado ao nome do contato deve ter de 3 à 45 caracteres', min: 3, max: 45 })
+    @Length({ msg: `O campo destinado ao nome do contato deve ter de ${NAME_MIN_LENGTH} à ${NAME_MAX_LENGTH} caracteres`, min: NAME_MIN_LENGTH, max: NAME_MAX_LENGTH })
     @Column(DataType.STRING(45))
     name!: string;
 
     @AllowNull(false)
-    @Length({ msg: 'O campo destinado ao apelido do contato deve ter de 3 à 20 caracteres', min: 3, max: 20 })
+    @Length({ msg: `O campo destinado ao apelido do contato deve ter de ${ALIAS_MIN_LENGTH} à ${ALIAS_MAX_LENGTH} caracteres`, min: ALIAS_MIN_LENGTH, max: ALIAS_MAX_LENGTH })
     @Column(DataType.STRING(20))
     alias!: string;
 

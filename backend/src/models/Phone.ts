@@ -2,6 +2,9 @@ import { Table, Column, Model, PrimaryKey, ForeignKey, BelongsTo, Default, AutoI
 
 import Contact from './Contact';
 
+const PHONE_MIN_LENGTH = 3;
+const PHONE_MAX_LENGTH = 20;
+
 @DefaultScope(() => ({
     where: { deleted: false },
     attributes: ['id', 'phone']
@@ -14,7 +17,7 @@ class Phone extends Model {
     id!: number;
 
     @AllowNull(false)
-    @Length({ msg: 'O campo destinado ao telefone deve ter de 3 à 20 caracteres', min: 3, max: 20 })
+    @Length({ msg: `O campo destinado ao telefone deve ter de ${PHONE_MIN_LENGTH} à ${PHONE_MAX_LENGTH} caracteres`, min: PHONE_MIN_LENGTH, max: PHONE_MAX_LENGTH })
     @Column(DataType.STRING(20))
     phone!: string;
 

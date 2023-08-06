@@ -1,6 +1,12 @@
 import { ValidationError } from 'sequelize';
 import { Table, Column, Model, PrimaryKey, AutoIncrement, Unique, DataType, AllowNull, AfterCreate, CreatedAt, UpdatedAt, Length, DefaultScope, BeforeCreate } from 'sequelize-typescript';
+
 import hashGenerator from '../utils/hashGenerator';
+
+const USERNAME_MIN_LENGTH = 3;
+const USERNAME_MAX_LENGTH = 45;
+const PASSWORD_MIN_LENGTH = 3;
+const PASSWORD_MAX_LENGTH = 32;
 
 @DefaultScope(() => ({
     attributes: {
@@ -16,7 +22,7 @@ class User extends Model {
 
     @AllowNull(false)
     @Unique
-    @Length({ msg: 'O campo destinado ao nome de usuário deve ter de 3 à 45 caracteres', min: 3, max: 45 })
+    @Length({ msg: `O campo destinado ao nome de usuário deve ter de ${USERNAME_MIN_LENGTH} à ${USERNAME_MAX_LENGTH} caracteres`, min: USERNAME_MIN_LENGTH, max: USERNAME_MAX_LENGTH })
     @Column(DataType.STRING(45))
     username!: string;
 
@@ -33,8 +39,8 @@ class User extends Model {
     @BeforeCreate
     static usernameToLowerCase(user: User) {
         const { dataValues } = user;
-        if (dataValues.password.length < 3 || dataValues.password.length > 32) {
-            throw new ValidationError('O campo destinado a senha deve ter de 3 à 32 caracteres', []);
+        if (dataValues.password.length < PASSWORD_MIN_LENGTH || dataValues.password.length > PASSWORD_MAX_LENGTH) {
+            throw new ValidationError(`O campo destinado a senha deve ter de ${PASSWORD_MIN_LENGTH} à ${PASSWORD_MAX_LENGTH} caracteres`, []);
         } else {
             dataValues.username = dataValues.username.toLowerCase();
             dataValues.password = hashGenerator.generate(dataValues.password);

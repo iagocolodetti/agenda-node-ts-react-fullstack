@@ -164,7 +164,7 @@ describe('controllers', () => {
                 expect(response.status).toBe(200);
                 expect(response.body.length).toBe(0);
             });
-        })
+        });
 
         it('should update a contact', async () => {
             MOCK_CONTACT = { ...MOCK_CONTACT, alias: 'NewNickname' };
